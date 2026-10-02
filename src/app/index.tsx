@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 type TxType = 'income' | 'expense';
+type TabType = 'dashboard' | 'input' | 'history';
 
 interface Category {
   name: string;
@@ -45,6 +46,13 @@ const INCOME_CATEGORIES: Category[] = [
 ];
 
 export default function FinanceTrackerApp() {
+  // STATE AUTH & NAVIGATION
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+
+  const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [transactions, setTransactions] = useState<Transaction[]>([
     {
       id: '1',
@@ -74,6 +82,23 @@ export default function FinanceTrackerApp() {
 
   const monthlyBudget = 2500000;
 
+  // LOGIK LOGIN & LOGOUT
+  const handleLogin = () => {
+    if (!username.trim() || !password.trim()) {
+      setLoginError('Username dan Password wajib diisi!');
+      return;
+    }
+    // Simulasi Login Sukses
+    setLoginError('');
+    setIsLoggedIn(true);
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setUsername('');
+    setPassword('');
+  };
+
   const handleTypeChange = (newType: TxType) => {
     setType(newType);
     setSelectedCategory(newType === 'expense' ? EXPENSE_CATEGORIES[0] : INCOME_CATEGORIES[0]);
@@ -95,6 +120,7 @@ export default function FinanceTrackerApp() {
     setTransactions([newTx, ...transactions]);
     setTitle('');
     setAmount('');
+    setActiveTab('history');
   };
 
   const handleDeleteTransaction = (id: string) => {
@@ -120,187 +146,274 @@ export default function FinanceTrackerApp() {
 
   const formatRupiah = (val: number) => 'Rp ' + val.toLocaleString('id-ID');
 
+  // ==========================================
+  // TAMPILAN 1: Halaman Login (Jika belum login)
+  // ==========================================
+  if (!isLoggedIn) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" />
+        <View style={styles.loginContainer}>
+          <Image
+            source={{ uri: '/apple-touch-icon.png' }}
+            style={styles.loginLogo}
+          />
+          <Text style={styles.loginTitle}>Finance Pro</Text>
+          <Text style={styles.loginSubtitle}>Silakan masuk ke akun kamu</Text>
+
+          {loginError ? <Text style={styles.errorText}>{loginError}</Text> : null}
+
+          <View style={styles.loginCard}>
+            <Text style={styles.inputLabel}>Username / Email</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Masukkan username"
+              placeholderTextColor="#64748b"
+              value={username}
+              onChangeText={setUsername}
+              autoCapitalize="none"
+            />
+
+            <Text style={styles.inputLabel}>Password</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Masukkan password"
+              placeholderTextColor="#64748b"
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+            />
+
+            <TouchableOpacity style={styles.submitBtn} onPress={handleLogin}>
+              <Text style={styles.submitBtnText}>Masuk Ke Dashboard</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ==========================================
+  // TAMPILAN 2: Main Dashboard (Jika sudah login)
+  // ==========================================
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        
-        {/* HEADER APLIKASI - MENGGUNAKAN URI DARI FOLDER PUBLIC */}
-        <View style={styles.header}>
-          <Image
-            source={{ uri: '/apple-touch-icon.png' }}
-            style={styles.headerLogo}
-          />
-          <View>
-            <Text style={styles.headerTitle}>Finance Pro</Text>
-            <Text style={styles.headerSubtitle}>Manajemen Keuangan Harian</Text>
-          </View>
-        </View>
-
-        {/* RINGKASAN SALDO & BUDGET METER */}
-        <View style={styles.balanceCard}>
-          <Text style={styles.balanceLabel}>Total Saldo Saat Ini</Text>
-          <Text style={styles.balanceValue}>{formatRupiah(balance)}</Text>
-
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>↓ Pemasukan</Text>
-              <Text style={[styles.summaryVal, { color: '#22c55e' }]}>
-                {formatRupiah(totalIncome)}
-              </Text>
+      
+      <View style={styles.contentContainer}>
+        {/* ================= TAB 1: DASHBOARD / TABUNGAN ================= */}
+        {activeTab === 'dashboard' && (
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+            <View style={styles.topUserHeader}>
+              <View>
+                <Text style={styles.welcomeText}>Selamat Datang,</Text>
+                <Text style={styles.usernameText}>{username || 'User'}</Text>
+              </View>
+              <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+                <Text style={styles.logoutText}>Keluar 🚪</Text>
+              </TouchableOpacity>
             </View>
 
-            <View style={styles.divider} />
+            <View style={styles.balanceCard}>
+              <Text style={styles.balanceLabel}>Total Saldo Saat Ini</Text>
+              <Text style={styles.balanceValue}>{formatRupiah(balance)}</Text>
 
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>↑ Pengeluaran</Text>
-              <Text style={[styles.summaryVal, { color: '#ef4444' }]}>
-                {formatRupiah(totalExpense)}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.budgetSection}>
-            <View style={styles.budgetHeader}>
-              <Text style={styles.budgetLabel}>Pengeluaran vs Batas Bulanan</Text>
-              <Text style={styles.budgetPercent}>{budgetUsagePercent}%</Text>
-            </View>
-            <View style={styles.budgetTrack}>
-              <View
-                style={[
-                  styles.budgetBar,
-                  {
-                    width: `${budgetUsagePercent}%`,
-                    backgroundColor: budgetUsagePercent > 85 ? '#ef4444' : '#3b82f6',
-                  },
-                ]}
-              />
-            </View>
-          </View>
-        </View>
-
-        {/* FORM INPUT TRANSAKSI */}
-        <Text style={styles.sectionTitle}>+ Tambah Catatan Baru</Text>
-        <View style={styles.formCard}>
-          <View style={styles.typeSelector}>
-            <TouchableOpacity
-              style={[styles.typeBtn, type === 'expense' && styles.typeBtnExpenseActive]}
-              onPress={() => handleTypeChange('expense')}
-            >
-              <Text style={[styles.typeText, type === 'expense' && styles.activeTypeText]}>
-                💸 Pengeluaran
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.typeBtn, type === 'income' && styles.typeBtnIncomeActive]}
-              onPress={() => handleTypeChange('income')}
-            >
-              <Text style={[styles.typeText, type === 'income' && styles.activeTypeText]}>
-                💵 Pemasukan
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <TextInput
-            style={styles.input}
-            placeholder="Keterangan (misal: Beli Kopi Boba)"
-            placeholderTextColor="#64748b"
-            value={title}
-            onChangeText={setTitle}
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Nominal Rp (misal: 25000)"
-            placeholderTextColor="#64748b"
-            keyboardType="numeric"
-            value={amount}
-            onChangeText={setAmount}
-          />
-
-          <Text style={styles.categoryLabel}>Pilih Kategori:</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryContainer}>
-            {(type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES).map(cat => {
-              const isSelected = selectedCategory.name === cat.name;
-              return (
-                <TouchableOpacity
-                  key={cat.name}
-                  style={[
-                    styles.categoryChip,
-                    isSelected && { backgroundColor: cat.color, borderColor: cat.color },
-                  ]}
-                  onPress={() => setSelectedCategory(cat)}
-                >
-                  <Text style={styles.categoryIcon}>{cat.icon}</Text>
-                  <Text style={[styles.categoryChipText, isSelected && { color: '#ffffff', fontWeight: 'bold' }]}>
-                    {cat.name}
+              <View style={styles.summaryRow}>
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryLabel}>↓ Pemasukan</Text>
+                  <Text style={[styles.summaryVal, { color: '#22c55e' }]}>
+                    {formatRupiah(totalIncome)}
                   </Text>
-                </TouchableOpacity>
-              );
-            })}
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryLabel}>↑ Pengeluaran</Text>
+                  <Text style={[styles.summaryVal, { color: '#ef4444' }]}>
+                    {formatRupiah(totalExpense)}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.budgetSection}>
+                <View style={styles.budgetHeader}>
+                  <Text style={styles.budgetLabel}>Pengeluaran vs Batas Bulanan</Text>
+                  <Text style={styles.budgetPercent}>{budgetUsagePercent}%</Text>
+                </View>
+                <View style={styles.budgetTrack}>
+                  <View
+                    style={[
+                      styles.budgetBar,
+                      {
+                        width: `${budgetUsagePercent}%`,
+                        backgroundColor: budgetUsagePercent > 85 ? '#ef4444' : '#3b82f6',
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
+            </View>
           </ScrollView>
-
-          <TouchableOpacity style={styles.submitBtn} onPress={handleAddTransaction}>
-            <Text style={styles.submitBtnText}>Simpan Transaksi</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* RIWAYAT TRANSAKSI */}
-        <View style={styles.historyHeader}>
-          <Text style={styles.sectionTitle}>Riwayat Transaksi</Text>
-          <View style={styles.filterGroup}>
-            <TouchableOpacity
-              style={[styles.filterBtn, filterTab === 'all' && styles.filterBtnActive]}
-              onPress={() => setFilterTab('all')}
-            >
-              <Text style={styles.filterText}>Semua</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.filterBtn, filterTab === 'expense' && styles.filterBtnActive]}
-              onPress={() => setFilterTab('expense')}
-            >
-              <Text style={styles.filterText}>Keluar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.filterBtn, filterTab === 'income' && styles.filterBtnActive]}
-              onPress={() => setFilterTab('income')}
-            >
-              <Text style={styles.filterText}>Masuk</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {filteredTransactions.length === 0 ? (
-          <Text style={styles.emptyText}>Belum ada riwayat transaksi.</Text>
-        ) : (
-          filteredTransactions.map(item => (
-            <View key={item.id} style={styles.txCard}>
-              <View style={styles.txLeft}>
-                <View style={styles.iconCircle}>
-                  <Text style={styles.txIcon}>{item.icon}</Text>
-                </View>
-                <View style={styles.txMeta}>
-                  <Text style={styles.txTitle}>{item.title}</Text>
-                  <Text style={styles.txSub}>
-                    {item.category} • {item.date}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.txRight}>
-                <Text style={[styles.txAmount, { color: item.type === 'income' ? '#22c55e' : '#ef4444' }]}>
-                  {item.type === 'income' ? '+' : '-'}{formatRupiah(item.amount)}
-                </Text>
-                <TouchableOpacity onPress={() => handleDeleteTransaction(item.id)}>
-                  <Text style={styles.deleteText}>Hapus</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))
         )}
 
-      </ScrollView>
+        {/* ================= TAB 2: INPUT TRANSAKSI ================= */}
+        {activeTab === 'input' && (
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+            <Text style={styles.pageTitle}>Catat Transaksi Baru</Text>
+            
+            <View style={styles.formCard}>
+              <View style={styles.typeSelector}>
+                <TouchableOpacity
+                  style={[styles.typeBtn, type === 'expense' && styles.typeBtnExpenseActive]}
+                  onPress={() => handleTypeChange('expense')}
+                >
+                  <Text style={[styles.typeText, type === 'expense' && styles.activeTypeText]}>
+                    💸 Pengeluaran
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.typeBtn, type === 'income' && styles.typeBtnIncomeActive]}
+                  onPress={() => handleTypeChange('income')}
+                >
+                  <Text style={[styles.typeText, type === 'income' && styles.activeTypeText]}>
+                    💵 Pemasukan
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <TextInput
+                style={styles.input}
+                placeholder="Keterangan (misal: Beli Kopi)"
+                placeholderTextColor="#64748b"
+                value={title}
+                onChangeText={setTitle}
+              />
+
+              <TextInput
+                style={styles.input}
+                placeholder="Nominal Rp (misal: 25000)"
+                placeholderTextColor="#64748b"
+                keyboardType="numeric"
+                value={amount}
+                onChangeText={setAmount}
+              />
+
+              <Text style={styles.categoryLabel}>Pilih Kategori:</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryContainer}>
+                {(type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES).map(cat => {
+                  const isSelected = selectedCategory.name === cat.name;
+                  return (
+                    <TouchableOpacity
+                      key={cat.name}
+                      style={[
+                        styles.categoryChip,
+                        isSelected && { backgroundColor: cat.color, borderColor: cat.color },
+                      ]}
+                      onPress={() => setSelectedCategory(cat)}
+                    >
+                      <Text style={styles.categoryIcon}>{cat.icon}</Text>
+                      <Text style={[styles.categoryChipText, isSelected && { color: '#ffffff', fontWeight: 'bold' }]}>
+                        {cat.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              <TouchableOpacity style={styles.submitBtn} onPress={handleAddTransaction}>
+                <Text style={styles.submitBtnText}>Simpan Transaksi</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        )}
+
+        {/* ================= TAB 3: RIWAYAT ================= */}
+        {activeTab === 'history' && (
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+            <View style={styles.historyHeader}>
+              <Text style={styles.pageTitle}>Riwayat Transaksi</Text>
+              <View style={styles.filterGroup}>
+                <TouchableOpacity
+                  style={[styles.filterBtn, filterTab === 'all' && styles.filterBtnActive]}
+                  onPress={() => setFilterTab('all')}
+                >
+                  <Text style={styles.filterText}>Semua</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.filterBtn, filterTab === 'expense' && styles.filterBtnActive]}
+                  onPress={() => setFilterTab('expense')}
+                >
+                  <Text style={styles.filterText}>Keluar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.filterBtn, filterTab === 'income' && styles.filterBtnActive]}
+                  onPress={() => setFilterTab('income')}
+                >
+                  <Text style={styles.filterText}>Masuk</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {filteredTransactions.length === 0 ? (
+              <Text style={styles.emptyText}>Belum ada riwayat transaksi.</Text>
+            ) : (
+              filteredTransactions.map(item => (
+                <View key={item.id} style={styles.txCard}>
+                  <View style={styles.txLeft}>
+                    <View style={styles.iconCircle}>
+                      <Text style={styles.txIcon}>{item.icon}</Text>
+                    </View>
+                    <View style={styles.txMeta}>
+                      <Text style={styles.txTitle}>{item.title}</Text>
+                      <Text style={styles.txSub}>
+                        {item.category} • {item.date}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.txRight}>
+                    <Text style={[styles.txAmount, { color: item.type === 'income' ? '#22c55e' : '#ef4444' }]}>
+                      {item.type === 'income' ? '+' : '-'}{formatRupiah(item.amount)}
+                    </Text>
+                    <TouchableOpacity onPress={() => handleDeleteTransaction(item.id)}>
+                      <Text style={styles.deleteText}>Hapus</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))
+            )}
+          </ScrollView>
+        )}
+      </View>
+
+      {/* ================= BOTTOM NAVIGATION BAR ================= */}
+      <View style={styles.bottomNav}>
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => setActiveTab('dashboard')}
+        >
+          <Text style={[styles.navIcon, activeTab === 'dashboard' && styles.activeNavIcon]}>📊</Text>
+          <Text style={[styles.navText, activeTab === 'dashboard' && styles.activeNavText]}>Dashboard</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => setActiveTab('input')}
+        >
+          <Text style={[styles.navIcon, activeTab === 'input' && styles.activeNavIcon]}>➕</Text>
+          <Text style={[styles.navText, activeTab === 'input' && styles.activeNavText]}>Catat</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => setActiveTab('history')}
+        >
+          <Text style={[styles.navIcon, activeTab === 'history' && styles.activeNavIcon]}>📜</Text>
+          <Text style={[styles.navText, activeTab === 'history' && styles.activeNavText]}>Riwayat</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -310,30 +423,90 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0f172a',
   },
+  contentContainer: {
+    flex: 1,
+  },
   scrollContent: {
     padding: 18,
+    paddingBottom: 30,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 20,
+  // LOGIN STYLES
+  loginContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
   },
-  headerLogo: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    marginRight: 12,
+  loginLogo: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    alignSelf: 'center',
+    marginBottom: 12,
   },
-  headerTitle: {
-    fontSize: 20,
+  loginTitle: {
+    fontSize: 26,
     fontWeight: 'bold',
     color: '#ffffff',
+    textAlign: 'center',
   },
-  headerSubtitle: {
-    fontSize: 12,
+  loginSubtitle: {
+    fontSize: 14,
     color: '#94a3b8',
-    marginTop: 2,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  loginCard: {
+    backgroundColor: '#1e293b',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  inputLabel: {
+    color: '#cbd5e1',
+    fontSize: 12,
+    marginBottom: 6,
+  },
+  errorText: {
+    color: '#ef4444',
+    textAlign: 'center',
+    marginBottom: 12,
+    fontSize: 13,
+  },
+  // TOP USER HEADER
+  topUserHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 18,
+  },
+  welcomeText: {
+    color: '#94a3b8',
+    fontSize: 12,
+  },
+  usernameText: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  logoutBtn: {
+    backgroundColor: '#334155',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  logoutText: {
+    color: '#f87171',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  pageTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    marginTop: 8,
+    marginBottom: 18,
   },
   balanceCard: {
     backgroundColor: '#1e293b',
@@ -408,12 +581,6 @@ const styles = StyleSheet.create({
   budgetBar: {
     height: '100%',
     borderRadius: 4,
-  },
-  sectionTitle: {
-    color: '#cbd5e1',
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
   },
   formCard: {
     backgroundColor: '#1e293b',
@@ -580,5 +747,35 @@ const styles = StyleSheet.create({
     color: '#64748b',
     textAlign: 'center',
     marginTop: 15,
+  },
+  bottomNav: {
+    flexDirection: 'row',
+    backgroundColor: '#1e293b',
+    borderTopWidth: 1,
+    borderTopColor: '#334155',
+    paddingVertical: 10,
+    paddingBottom: 16,
+  },
+  navItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navIcon: {
+    fontSize: 18,
+    opacity: 0.5,
+  },
+  activeNavIcon: {
+    opacity: 1,
+  },
+  navText: {
+    color: '#64748b',
+    fontSize: 11,
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  activeNavText: {
+    color: '#3b82f6',
+    fontWeight: 'bold',
   },
 });
